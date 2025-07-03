@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import logging.config
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
