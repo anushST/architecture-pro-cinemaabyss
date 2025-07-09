@@ -62,16 +62,11 @@ async def health():
 
 
 @app.get('/api/movies')
-async def movies():
-    return await proxy('GET', '/api/movies',
-                       new_backend=settings.MOVIES_SERVICE_URL,
-                       migration_percent=settings.MOVIES_MIGRATION_PERCENT,
-                       counter='movies')
-
-
-@app.get('/api/movies/{movie_id}')
-async def movie(movie_id: int):
-    return await proxy('GET', f'/api/movies/{movie_id}',
+async def movies(id: Optional[int] = None):
+    url = '/api/movies'
+    if id:
+        url = url + f'?id={id}'
+    return await proxy('GET', url,
                        new_backend=settings.MOVIES_SERVICE_URL,
                        migration_percent=settings.MOVIES_MIGRATION_PERCENT,
                        counter='movies')
@@ -92,13 +87,11 @@ async def create_movie(request: Request):
 
 
 @app.get('/api/users')
-async def users():
-    return await proxy('GET', '/api/users', counter='users')
-
-
-@app.get('/api/users/{movie_id}')
-async def user(movie_id: int):
-    return await proxy('GET', f'/api/users/{movie_id}', counter='users')
+async def users(id: Optional[int] = None):
+    url = f'/api/users'
+    if id:
+        url = url + f'?id={id}'
+    return await proxy('GET', url, counter='users')
 
 
 @app.post('/api/users', status_code=201)
@@ -114,13 +107,11 @@ async def create_user(request: Request):
 
 
 @app.get('/api/payments')
-async def payments():
-    return await proxy('GET', '/api/payments', counter='payments')
-
-
-@app.get('/api/payments/{payment_id}')
-async def payment(payment_id: int):
-    return await proxy('GET', f'/api/payments/{payment_id}', counter='payments')
+async def payments(id: Optional[int] = None):
+    url = '/api/payments'
+    if id:
+        url = url + f'?id={id}'
+    return await proxy('GET', url, counter='payments')
 
 
 @app.post('/api/payments', status_code=201)
@@ -136,13 +127,11 @@ async def create_payment(request: Request):
 
 
 @app.get('/api/subscriptions')
-async def subscriptions():
-    return await proxy('GET', '/api/subscriptions', counter='subscriptions')
-
-
-@app.get('/api/subscriptions/{subscription_id}')
-async def subscription(subscription_id: int):
-    return await proxy('GET', f'/api/subscriptions/{subscription_id}', counter='subscriptions')
+async def subscriptions(id: Optional[int] = None):
+    url = '/api/subscriptions'
+    if id:
+        url = url + f'?id={id}'
+    return await proxy('GET', url, counter='subscriptions')
 
 
 @app.post('/api/subscriptions', status_code=201)
