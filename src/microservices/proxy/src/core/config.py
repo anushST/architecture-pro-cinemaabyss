@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     PORT: int
     MONOLITH_URL: str
     MOVIES_SERVICE_URL: str
-    EVENTS_SERVICE_URL: str
     GRADUAL_MIGRATION: bool
     MOVIES_MIGRATION_PERCENT: int
 
