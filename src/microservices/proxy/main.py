@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import logging.config
+from typing import Optional
+
+from fastapi import FastAPI, Request, HTTPException, Response
+import aiohttp
 import uvicorn
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 
 from src.core.config import settings, LOGGING_CONFIG
 
@@ -11,40 +13,158 @@ logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-
-requests_count = {
-    'health': 0,
-    'movies': 0,
-    'users': 0
+requests_count: dict[str, int] = {
+    'movies': 0, 'users': 0, 'payments': 0, 'subscriptions': 0,
 }
 
 
+def need_new_backend(counter_name: str, percent: int) -> bool:
+    if not settings.GRADUAL_MIGRATION or percent <= 0:
+        return False
+    requests_count[counter_name] += 1
+    chance = 100 // percent
+    return requests_count[counter_name] % chance == 0
+
+
+async def proxy(
+    method: str,
+    path: str,
+    counter: str,
+    new_backend: Optional[str] = None,
+    migration_percent: Optional[int] = 0,
+    json: Optional[dict] = None,
+    ok_codes: tuple[int, ...] = (200,),
+) -> Response:
+    to_new = need_new_backend(counter, migration_percent)
+    base_url = new_backend if to_new else settings.MONOLITH_URL
+    url = f'{base_url}{path}'
+
+    async with aiohttp.ClientSession() as session, session.request(
+        method, url, json=json
+    ) as resp:
+        if resp.status not in ok_codes:
+            raise HTTPException(resp.status, await resp.text())
+
+        data = await resp.read()
+        return Response(
+            content=data,
+            media_type=resp.headers.get('content-type'),
+            status_code=resp.status,
+            headers={k: v for k, v in resp.headers.items() if k.lower() not in {
+                'content-length', 'transfer-encoding', 'connection'}
+            },
+        )
 
 
 @app.get('/health')
 async def health():
-    requests_count['health'] += 1
-    return RedirectResponse(url=settings.MONOLITH_URL + '/health')
+    return {'status': True}
+
 
 @app.get('/api/movies')
 async def movies():
-    chance = int(100 / settings.MOVIES_MIGRATION_PERCENT)
-    requests_count['movies'] += 1
-    if requests_count['movies'] % chance == 0:
-        return RedirectResponse(url=settings.MOVIES_SERVICE_URL + '/api/movies')
-    else:
-        return RedirectResponse(url=settings.MONOLITH_URL + '/api/movies')
-    
+    return await proxy('GET', '/api/movies',
+                       new_backend=settings.MOVIES_SERVICE_URL,
+                       migration_percent=settings.MOVIES_MIGRATION_PERCENT,
+                       counter='movies')
+
+
+@app.get('/api/movies/{movie_id}')
+async def movie(movie_id: int):
+    return await proxy('GET', f'/api/movies/{movie_id}',
+                       new_backend=settings.MOVIES_SERVICE_URL,
+                       migration_percent=settings.MOVIES_MIGRATION_PERCENT,
+                       counter='movies')
+
+
+@app.post('/api/movies', status_code=201)
+async def create_movie(request: Request):
+    payload = await request.json()
+    return await proxy(
+        'POST',
+        '/api/movies',
+        new_backend=settings.MOVIES_SERVICE_URL,
+        migration_percent=settings.MOVIES_MIGRATION_PERCENT,
+        counter='movies',
+        json=payload,
+        ok_codes=(200, 201),
+    )
+
 
 @app.get('/api/users')
 async def users():
-    requests_count['users'] += 1
-    return RedirectResponse(url=settings.MONOLITH_URL + '/api/users')
+    return await proxy('GET', '/api/users', counter='users')
+
+
+@app.get('/api/users/{movie_id}')
+async def user(movie_id: int):
+    return await proxy('GET', f'/api/users/{movie_id}', counter='users')
+
+
+@app.post('/api/users', status_code=201)
+async def create_user(request: Request):
+    payload = await request.json()
+    return await proxy(
+        'POST',
+        '/api/users',
+        counter='users',
+        json=payload,
+        ok_codes=(200, 201),
+    )
+
+
+@app.get('/api/payments')
+async def payments():
+    return await proxy('GET', '/api/payments', counter='payments')
+
+
+@app.get('/api/payments/{payment_id}')
+async def payment(payment_id: int):
+    return await proxy('GET', f'/api/payments/{payment_id}', counter='payments')
+
+
+@app.post('/api/payments', status_code=201)
+async def create_payment(request: Request):
+    payload = await request.json()
+    return await proxy(
+        'POST',
+        '/api/payments',
+        counter='payments',
+        json=payload,
+        ok_codes=(200, 201),
+    )
+
+
+@app.get('/api/subscriptions')
+async def subscriptions():
+    return await proxy('GET', '/api/subscriptions', counter='subscriptions')
+
+
+@app.get('/api/subscriptions/{subscription_id}')
+async def subscription(subscription_id: int):
+    return await proxy('GET', f'/api/subscriptions/{subscription_id}', counter='subscriptions')
+
+
+@app.post('/api/subscriptions', status_code=201)
+async def create_subscription(request: Request):
+    payload = await request.json()
+    return await proxy(
+        'POST',
+        '/api/subscriptions',
+        counter='subscriptions',
+        json=payload,
+        ok_codes=(200, 201),
+    )
+
 
 async def main():
-    config = uvicorn.Config('main:app', host='0.0.0.0',
-                            port=settings.PORT, reload=True,
-                            log_config=None)
+    config = uvicorn.Config(
+        'main:app',
+        host='0.0.0.0',
+        port=settings.PORT,
+        reload=True,
+        log_config=None,
+    )
     server = uvicorn.Server(config)
     await server.serve()
 
