@@ -1,0 +1,63 @@
+@startuml KinoBezdna container
+title KinoBezdna Container Diagram
+
+top to bottom direction
+
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+Person(user, "User", "A user of the KinoBezdna service (TV, Phones, Laptops)")
+System_Ext(ExtRecomendationSystem, "Recomendation System", "External recomendation system")
+System_Ext(OnlineTheaters, "Online Theaters", "Online Theaters")
+System_Ext(S3, "S3", "Storage the users static data")
+System_Ext(PaymentSystemExt, "Payment System", "External payment system")
+System(KinoBezdnaSystem, "KinoBezdna System", "System streaming films.")
+
+Container_Boundary(KinoBezdnaSystem, "KinoBezdna System") {
+  Container(ApiGateway, "API Gateaway", "Kong", "API Gateaway")
+
+  Container(SubscribtionManagement, "Subscribtion Management", "Python, FastAPI", "Works with the subscribtions.")
+  Container(SubscribtionDatabase, "Database", "PostgreSQL", "Stores the data")
+
+  Container(UserIdentification, "Identification and Accesss", "Python, FastAPI", "Sign Up/Sign In the users. Edit user's data.")
+  Container(UserDatabase, "Database", "PostgreSQL", "Stores the data")
+
+  Container(PaymentSystem, "Payment System", "Python, FastAPI", "Works with the payments.")
+  Container(PaymentDatabase, "Database", "PostgreSQL", "Stores the data")
+
+  Container(MovieManagement, "Movie Management", "Python, FastAPI", "Works with the movies meta-data.")
+  Container(MovieDatabase, "Database", "PostgreSQL", "Stores the data")
+
+  Container(RecomendationSystem, "Recomendation System", "Python, FastAPI", "Works with the recomendations.")
+  Container(RecomendationDatabase, "Database", "PostgreSQL", "Stores the data")
+}
+
+
+Rel(user, ApiGateway, "Uses the system")
+Rel(user, S3, "Gets movies S3")
+Rel(ApiGateway, SubscribtionManagement, "Managing subscribtions")
+Rel(ApiGateway, UserIdentification, "SignIn/SignUp, Users managing")
+Rel(ApiGateway, PaymentSystem, "Managing Payments")
+Rel(ApiGateway, MovieManagement, "Managing Movies")
+Rel(ApiGateway, RecomendationSystem, "Managing Recomendations")
+
+Rel(SubscribtionManagement, SubscribtionDatabase, "Create, Update, Get and Delete data")
+Rel(UserIdentification, UserDatabase, "Create, Update, Get and Delete data")
+Rel(PaymentSystem, PaymentDatabase, "Create, Update, Get and Delete data")
+Rel(MovieManagement, MovieDatabase, "Create, Update, Get and Delete data")
+Rel(RecomendationSystem, RecomendationDatabase, "Create, Update, Get and Delete data")
+
+Rel(RecomendationSystem, ExtRecomendationSystem, "Create, Update, Get and Delete scenarios")
+Rel(MovieManagement, OnlineTheaters, "Gets film's metadata")
+Rel(PaymentSystem, PaymentSystemExt, "Process payments")
+
+Rel(SubscribtionManagement, UserIdentification, "Uses user's data")
+Rel(PaymentSystem, UserIdentification, "Uses user's data")
+Rel(MovieManagement, UserIdentification, "Uses user's data")
+Rel(RecomendationSystem, UserIdentification, "Uses user's data")
+
+Rel(RecomendationSystem, MovieManagement, "Retrieves movies info")
+Rel(PaymentSystem, MovieManagement, "Retrieves movies info")
+Rel(SubscribtionManagement, MovieManagement, "Retrieves movies info")
+
+
+@enduml

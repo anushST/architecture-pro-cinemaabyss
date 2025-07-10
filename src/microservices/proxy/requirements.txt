@@ -1,0 +1,13 @@
+# --- Web и API ---
+aiohttp==3.10.11
+fastapi==0.115.6
+requests==2.32.3
+uvicorn==0.34.0
+
+
+# --- Pydantic ---
+pydantic==2.9.2
+pydantic-settings==2.6.1
+
+# --- Other ---
+
